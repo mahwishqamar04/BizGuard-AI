@@ -1,0 +1,38 @@
+# Environment variables (MUST NOT commit secrets)
+.env
+.env.*
+!.env.example
+*.env
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Bundled runtime (do not commit)
+nodejs/
+
+# Test/build output files
+test_output*.txt
+test_out*.txt
+build_output.txt
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
