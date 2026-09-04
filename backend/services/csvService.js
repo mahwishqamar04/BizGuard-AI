@@ -113,20 +113,32 @@ function mapColumns(row) {
 }
 
 /**
- * Detect CSV type: 'financial' or 'inventory' based on column names
+ * Detect CSV type: 'financial' or 'inventory' based on column names.
+ * Uses COLUMN_ALIASES to recognise all supported column name variants.
  */
 function detectCSVType(headers) {
   const normalizedHeaders = headers.map(h => h.toLowerCase().replace(/[^a-z0-9_]/g, '_'));
 
-  const inventoryIndicators = ['quantity', 'qty', 'stock', 'stock_quantity', 'on_hand', 'min_stock', 'reorder_level', 'unit_price'];
-  const financialIndicators = ['sales', 'revenue', 'expenses', 'costs', 'profit', 'income'];
+  // Build indicator sets from COLUMN_ALIASES for each field group
+  const financialFields = ['sales', 'expenses', 'profit', 'employees'];
+  const inventoryFields = ['name', 'quantity', 'minStock', 'price', 'category'];
+
+  const financialIndicators = new Set();
+  for (const field of financialFields) {
+    if (COLUMN_ALIASES[field]) COLUMN_ALIASES[field].forEach(a => financialIndicators.add(a));
+  }
+
+  const inventoryIndicators = new Set();
+  for (const field of inventoryFields) {
+    if (COLUMN_ALIASES[field]) COLUMN_ALIASES[field].forEach(a => inventoryIndicators.add(a));
+  }
 
   let inventoryScore = 0;
   let financialScore = 0;
 
   for (const h of normalizedHeaders) {
-    if (inventoryIndicators.includes(h)) inventoryScore++;
-    if (financialIndicators.includes(h)) financialScore++;
+    if (inventoryIndicators.has(h)) inventoryScore++;
+    if (financialIndicators.has(h)) financialScore++;
   }
 
   if (inventoryScore > financialScore) return 'inventory';

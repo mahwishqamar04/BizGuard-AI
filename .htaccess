@@ -1,0 +1,77 @@
+# =============================================================
+# BizGuard AI — Apache Configuration (XAMPP Local Demo)
+# =============================================================
+# This .htaccess secures sensitive files and directories while
+# serving the React SPA at http://localhost/BizGuard-AI/
+# =============================================================
+
+# ---- Disable directory listing ----
+Options -Indexes
+
+# ---- Default document ----
+DirectoryIndex index.html
+
+# ---- Block access to sensitive file types ----
+<FilesMatch "\.(env|gitignore|log|md|sql)$">
+    Require all denied
+</FilesMatch>
+
+# ---- Explicitly block sensitive files ----
+<Files ".env">
+    Require all denied
+</Files>
+<Files ".env.example">
+    Require all denied
+</Files>
+<Files ".gitignore">
+    Require all denied
+</Files>
+<Files "package.json">
+    Require all denied
+</Files>
+<Files "package-lock.json">
+    Require all denied
+</Files>
+<Files "server.js">
+    Require all denied
+</Files>
+
+# ---- Block dotfiles (except .htaccess) ----
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+<Files ".htaccess">
+    Require all granted
+</Files>
+
+# ---- Block Node.js source directories ----
+# Prevent access to backend source, frontend source, and node_modules
+RewriteEngine On
+RewriteRule ^backend/ - [F,L]
+RewriteRule ^frontend/src/ - [F,L]
+RewriteRule ^frontend/node_modules/ - [F,L]
+RewriteRule ^node_modules/ - [F,L]
+RewriteRule ^nodejs/ - [F,L]
+RewriteRule ^docs/ - [F,L]
+RewriteRule ^\.git/ - [F,L]
+
+# ---- Block JSON files at root (package.json etc.) but allow in assets/ ----
+<FilesMatch "\.json$">
+    Require all denied
+</FilesMatch>
+
+# ---- Cache static assets ----
+<IfModule mod_expires.c>
+    ExpiresActive On
+    <FilesMatch "\.(js|css|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf)$">
+        ExpiresByType application/javascript "access plus 1 hour"
+        ExpiresByType text/css "access plus 1 hour"
+        ExpiresByType image/svg+xml "access plus 1 hour"
+    </FilesMatch>
+</IfModule>
+
+# ---- Security headers ----
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+</IfModule>

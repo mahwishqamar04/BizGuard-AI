@@ -11,6 +11,15 @@ node_modules/
 dist/
 build/
 
+# XAMPP build output (copied to project root for Apache)
+assets/
+index.html
+
+# Temporary scripts and utilities
+_*.js
+db_check.js
+backend/_*.js
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -31,6 +40,7 @@ nodejs/
 test_output*.txt
 test_out*.txt
 build_output.txt
+backend/*.txt
 
 # Temporary files
 *.tmp

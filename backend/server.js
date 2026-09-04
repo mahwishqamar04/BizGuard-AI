@@ -1,6 +1,11 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
+// Eagerly initialise the MySQL connection pool so that isDBAvailable()
+// returns the correct value before the first request arrives.
+const { getPool, testConnection } = require("./config/db");
+getPool();
+
 const express = require("express");
 const cors = require("cors");
 
@@ -66,8 +71,17 @@ app.use((err, req, res, _next) => {
 });
 
 // Start server immediately — works both standalone and when require()'d by tests
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`BizGuard AI backend running on http://localhost:${PORT}`);
+
+  // Run a lightweight SELECT 1 connectivity check at startup
+  const result = await testConnection();
+  if (result.success) {
+    console.log(`[DB] SELECT 1 test passed — ${JSON.stringify(result.result)}`);
+  } else {
+    console.warn(`[DB] SELECT 1 test failed — ${result.message}`);
+    console.warn('[DB] Application will use in-memory storage as fallback');
+  }
 });
 
 server.on("error", (err) => {

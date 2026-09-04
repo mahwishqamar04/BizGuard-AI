@@ -46,10 +46,9 @@ function App() {
     }
   }
 
-  // Load business data on mount
-  useEffect(() => {
-    loadBusinessData()
-  }, [])
+  // NOTE: Business data is NOT auto-loaded on mount.
+  // The frontend starts in a clean/empty state each session.
+  // Data is loaded when the user saves the Business Setup form or uploads a CSV.
 
   const loadBusinessData = async () => {
     try {
@@ -290,6 +289,12 @@ function App() {
           // Reload business data to get updated inventory
           await loadBusinessData()
         }
+
+        // Auto-redirect to Dashboard after a brief delay so the user
+        // can see the success notification before the screen changes.
+        setTimeout(() => {
+          setCurrentScreen('dashboard')
+        }, 1200)
       } else {
         const errorMsg = data.validation?.errors?.join('; ') || data.message || 'CSV upload failed'
         setError(errorMsg)
@@ -497,10 +502,12 @@ function App() {
           ) : (
             <div className="screen welcome-screen">
               <div className="welcome-content">
-                <div className="loading-spinner"></div>
                 <div className="welcome-icon">📊</div>
                 <h2>Dashboard</h2>
-                <p>Loading your business data...</p>
+                <p>No business data yet. Use the <strong>Business</strong> tab to enter your information or <strong>Upload CSV</strong> to import data.</p>
+                <button className="btn-primary" onClick={() => setCurrentScreen('setup')} style={{ marginTop: '16px' }}>
+                  Set Up Your Business
+                </button>
               </div>
             </div>
           )
@@ -582,12 +589,12 @@ function WelcomeScreen({ onGetStarted }) {
 function BusinessSetupScreen({ initialData, onSave, loading }) {
   const [formData, setFormData] = useState(
     initialData || {
-      name: 'My Business',
+      name: '',
       category: 'Retail',
-      sales: 45000,
-      expenses: 18000,
-      profit: 27000,
-      employees: 5,
+      sales: '',
+      expenses: '',
+      profit: '',
+      employees: '',
     }
   )
 

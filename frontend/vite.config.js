@@ -9,6 +9,10 @@ export default defineConfig(({ mode }) => {
 
   return defineConfig({
     plugins: [react()],
+    // In production, serve all assets under the /BizGuard-AI/ subpath so the
+    // SPA works when hosted at http://localhost/BizGuard-AI/ (XAMPP htdocs).
+    // In development the default base (/) is correct for the Vite dev server.
+    base: mode === 'production' ? '/BizGuard-AI/' : '/',
     server: {
       // In development, proxy /api requests to the backend server.
       // This allows the frontend to use relative URLs (/api/ai/*)
