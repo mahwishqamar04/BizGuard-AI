@@ -1,5 +1,17 @@
 ﻿import { useState, useEffect } from 'react'
 import './App.css'
+import HealthGauge from './components/HealthGauge'
+import { SalesExpensesChart, ProfitMarginGauge, ExpenseRatioGauge } from './components/DashboardCharts'
+import DemoScenarios from './components/DemoScenarios'
+import AnimatedNumber from './components/AnimatedNumber'
+import IndustryBenchmark from './components/IndustryBenchmark'
+import ScenarioSimulator from './components/ScenarioSimulator'
+import { getBenchmarkRecommendation } from './config/industryBenchmarks'
+
+// Stable formatter functions for AnimatedNumber (module-level to avoid re-renders)
+const fmtCurrency = (v) => '$' + Math.round(v).toLocaleString()
+const fmtPercent2 = (v) => parseFloat(v).toFixed(2) + '%'
+const fmtPercent0 = (v) => Math.round(v) + '%'
 
 function App() {
   // Screens: welcome, setup, dashboard, assistant
@@ -86,6 +98,13 @@ function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Load a demo scenario through the existing business data pipeline.
+  // This reuses handleSaveBusiness so all calculations, analysis, and
+  // navigation happen through the normal application flow.
+  const handleLoadDemo = (scenarioData) => {
+    handleSaveBusiness(scenarioData)
   }
 
   const handleSaveBusiness = async (formData) => {
@@ -296,8 +315,12 @@ function App() {
           setCurrentScreen('dashboard')
         }, 1200)
       } else {
-        const errorMsg = data.validation?.errors?.join('; ') || data.message || 'CSV upload failed'
-        setError(errorMsg)
+        const rawError = data.validation?.errors?.join('; ') || data.message || 'CSV upload failed'
+        // Make error messages more user-friendly
+        const errorMsg = rawError
+          .replace(/Missing required columns?/gi, 'Missing columns')
+          .replace(/unknown columns?/gi, 'Unrecognized columns')
+        setError('⚠️ ' + errorMsg)
         setUploadStatus({ success: false, validation: data.validation })
       }
     } catch (err) {
@@ -470,7 +493,19 @@ function App() {
 
       {/* Main Content */}
       <main className="app-content">
-        {error && <div className="error-message">{error}</div>}
+        {error && (
+          <div className="error-message" role="alert">
+            <span>{error}</span>
+            <button
+              className="error-dismiss"
+              onClick={() => setError('')}
+              aria-label="Dismiss error message"
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {/* Welcome Screen */}
         {currentScreen === 'welcome' && (
@@ -498,6 +533,7 @@ function App() {
               loading={loading}
               onAnalyze={() => getAnalysis(businessData)}
               onManageInventory={() => setCurrentScreen('inventory')}
+              onLoadDemo={handleLoadDemo}
             />
           ) : (
             <div className="screen welcome-screen">
@@ -509,6 +545,7 @@ function App() {
                   Set Up Your Business
                 </button>
               </div>
+              <DemoScenarios onLoadDemo={handleLoadDemo} loading={loading} />
             </div>
           )
         )}
@@ -634,6 +671,7 @@ function BusinessSetupScreen({ initialData, onSave, loading }) {
             <label>Business Category</label>
             <select name="category" value={formData.category} onChange={handleChange} disabled={loading}>
               <option>Retail</option>
+              <option>Restaurant / Food</option>
               <option>Services</option>
               <option>Manufacturing</option>
               <option>Technology</option>
@@ -650,7 +688,9 @@ function BusinessSetupScreen({ initialData, onSave, loading }) {
                 value={formData.sales}
                 onChange={handleChange}
                 disabled={loading}
+                min="0"
                 required
+                aria-label="Monthly sales amount"
               />
             </div>
 
@@ -662,12 +702,14 @@ function BusinessSetupScreen({ initialData, onSave, loading }) {
                 value={formData.expenses}
                 onChange={handleChange}
                 disabled={loading}
+                min="0"
                 required
+                aria-label="Monthly expenses amount"
               />
             </div>
 
             <div className="form-group">
-              <label>Monthly Profit</label>
+              <label>Monthly Profit <span className="field-hint">(auto-calculated)</span></label>
               <input
                 type="number"
                 name="profit"
@@ -675,6 +717,7 @@ function BusinessSetupScreen({ initialData, onSave, loading }) {
                 onChange={handleChange}
                 disabled={loading}
                 title="Auto-calculated from Sales - Expenses"
+                aria-label="Monthly profit, auto-calculated from sales minus expenses"
               />
             </div>
           </div>
@@ -702,7 +745,7 @@ function BusinessSetupScreen({ initialData, onSave, loading }) {
 }
 
 // Dashboard Screen Component
-function DashboardScreen({ business, metrics, analysis, loading, onAnalyze, onManageInventory }) {
+function DashboardScreen({ business, metrics, analysis, loading, onAnalyze, onManageInventory, onLoadDemo }) {
   // Use health score from analysis if available, otherwise calculate
   const healthScore = analysis?.healthScore ?? (
     business.profit > 0 
@@ -745,10 +788,8 @@ function DashboardScreen({ business, metrics, analysis, loading, onAnalyze, onMa
           <h2>{business.name}</h2>
           <p>{business.category} • {business.employees} employees</p>
         </div>
-        <div className={`health-badge health-${healthStatusColor}`}>
-          <div className="health-score">{healthScore}</div>
-          <div className="health-label">Health</div>
-          <div className="health-status">{healthStatus}</div>
+        <div className="health-gauge-container">
+          <HealthGauge score={healthScore} status={healthStatus} />
         </div>
       </div>
 
@@ -756,26 +797,64 @@ function DashboardScreen({ business, metrics, analysis, loading, onAnalyze, onMa
       <div className="metrics-grid">
         <div className="metric-card primary">
           <div className="metric-label">💰 Monthly Sales</div>
-          <div className="metric-value">${business.sales?.toLocaleString()}</div>
+          <div className="metric-value">
+            <AnimatedNumber value={business.sales} formatter={fmtCurrency} />
+          </div>
         </div>
 
         <div className="metric-card warning">
           <div className="metric-label">💸 Monthly Expenses</div>
-          <div className="metric-value">${business.expenses?.toLocaleString()}</div>
-          <div className="metric-subtext">{expenseRatio}% of revenue</div>
+          <div className="metric-value">
+            <AnimatedNumber value={business.expenses} formatter={fmtCurrency} />
+          </div>
+          <div className="metric-subtext">
+            <AnimatedNumber value={expenseRatio} formatter={fmtPercent0} /> of revenue
+          </div>
         </div>
 
         <div className="metric-card success">
           <div className="metric-label">📈 Monthly Profit</div>
-          <div className="metric-value">${business.profit?.toLocaleString()}</div>
+          <div className="metric-value">
+            <AnimatedNumber value={business.profit} formatter={fmtCurrency} />
+          </div>
         </div>
 
         <div className="metric-card info">
           <div className="metric-label">📊 Profit Margin</div>
-          <div className="metric-value">{profitMargin}%</div>
+          <div className="metric-value">
+            <AnimatedNumber value={profitMargin} formatter={fmtPercent2} />
+          </div>
           <div className="metric-subtext">of sales revenue</div>
         </div>
       </div>
+
+      {/* Data Visualizations */}
+      <div className="charts-section">
+        {/* Sales vs Expenses */}
+        <SalesExpensesChart sales={business.sales} expenses={business.expenses} />
+
+        {/* Profit Margin + Expense Ratio side by side */}
+        <div className="charts-row">
+          <ProfitMarginGauge profitMargin={profitMargin} />
+          <ExpenseRatioGauge expenseRatio={expenseRatio} />
+        </div>
+      </div>
+
+      {/* Industry Benchmark Section */}
+      <IndustryBenchmark
+        profitMargin={profitMargin}
+        expenseRatio={expenseRatio}
+        category={business.category}
+      />
+
+      {/* What-If Scenario Simulator */}
+      <ScenarioSimulator
+        sales={business.sales}
+        expenses={business.expenses}
+        profit={business.profit}
+        profitMargin={profitMargin}
+        healthScore={healthScore}
+      />
 
       {/* AI Analysis Workflow Section */}
       <div className="analysis-section">
@@ -787,12 +866,19 @@ function DashboardScreen({ business, metrics, analysis, loading, onAnalyze, onMa
             ) : (analysis ? 'Re-Analyze' : 'Analyze Business')}
           </button>
         </div>
-
-        {!analysis ? (
+      
+        {loading && !analysis && (
+          <div className="analysis-loading" role="status" aria-live="polite">
+            <div className="loading-spinner-sm"></div>
+            <p>Analyzing your business data...</p>
+          </div>
+        )}
+      
+        {!loading && !analysis ? (
           <div className="no-analysis">
             <p>Click "Analyze Business" to get AI insights about your financial health.</p>
           </div>
-        ) : (
+        ) : analysis ? (
           <>
             {/* Workflow Visualization */}
             <div className="workflow-container">
@@ -900,8 +986,31 @@ function DashboardScreen({ business, metrics, analysis, loading, onAnalyze, onMa
                 </div>
               </div>
             )}
+
+            {/* Benchmark-Enriched Insights */}
+            {(() => {
+              const benchmarkRecs = getBenchmarkRecommendation(profitMargin, expenseRatio, business.category)
+              return benchmarkRecs.length > 0 ? (
+                <div className="analysis-box benchmark-insights-box">
+                  <div className="box-header">
+                    <h3>🏭 Benchmark Insights</h3>
+                    <span className="benchmark-insight-badge">Reference</span>
+                  </div>
+                  <div className="recommendations-list">
+                    {benchmarkRecs.map((text, i) => (
+                      <div key={i} className="recommendation-item priority-info">
+                        <p>{text}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="benchmark-disclaimer-inline">
+                    Illustrative reference only — not official industry statistics.
+                  </p>
+                </div>
+              ) : null
+            })()}
           </>
-        )}
+        ) : null}
       </div>
 
       {/* Inventory Monitoring Section */}
@@ -1002,6 +1111,9 @@ function DashboardScreen({ business, metrics, analysis, loading, onAnalyze, onMa
           )}
         </div>
       )}
+
+      {/* Demo Scenarios Section */}
+      <DemoScenarios onLoadDemo={onLoadDemo} loading={loading} />
     </div>
   )
 }
@@ -1189,22 +1301,34 @@ function AssistantScreen({ messages, input, onInputChange, onSend, loading }) {
         </div>
 
         <div className="input-area">
-          <input
-            type="text"
-            placeholder="Ask about your business..."
-            value={input}
-            onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onSend()}
-            disabled={loading}
-            maxLength={5000}
-          />
-          <button
-            className="btn-send"
-            onClick={onSend}
-            disabled={loading || !input.trim()}
-          >
-            Send
-          </button>
+          <div className="input-row">
+            <input
+              type="text"
+              placeholder="Ask about your business..."
+              value={input}
+              onChange={(e) => onInputChange(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && onSend()}
+              disabled={loading}
+              maxLength={5000}
+              aria-label="Type your question about your business"
+            />
+            <button
+              className="btn-send"
+              onClick={onSend}
+              disabled={loading || !input.trim()}
+              aria-label="Send message"
+            >
+              {loading ? '⏳' : 'Send'}
+            </button>
+          </div>
+          <div className="input-footer">
+            <span className="input-hint">Press Enter to send</span>
+            {input.length > 0 && (
+              <span className={`char-counter ${input.length > 4500 ? 'warn' : ''}`}>
+                {input.length}/5000
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>
