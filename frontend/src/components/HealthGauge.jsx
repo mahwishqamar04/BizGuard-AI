@@ -131,8 +131,8 @@ function HealthGauge({ score, status }) {
           >
             Health
           </text>
-          {/* Status text below the donut */}
-          <text
+          {/* Status text below the donu/}
+        text
             x={CENTER}
             y={CENTER + 36}
             textAnchor="middle"
