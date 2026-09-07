@@ -1,17 +1,4 @@
 {
-  "name": "bizguard-ai",
-  "version": "1.0.0",
-  "private": true,
-  "description": "BizGuard AI — AI-powered business analysis platform",
-  "scripts": {
-    "start": "node backend/server.js",
-    "start:backend": "node backend/server.js",
-    "build:frontend": "cd frontend && npm run build",
-    "test": "node backend/test_services.js",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
-    "setup:db": "node backend/setup_db.js",
-    "setup:cloud": "node backend/setup_cloud.js"
-  },
   "dependencies": {
     "csv-parser": "^3.2.1",
     "multer": "^2.3.0"
